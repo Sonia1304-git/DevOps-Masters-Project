@@ -1,3 +1,29 @@
+# 🚀 Task 1: AWS CodePipeline using Terraform
+
+This project provisions a **CI/CD pipeline** using **AWS CodePipeline, CodeBuild, and CodeDeploy** with **Terraform**. It deploys an application from GitHub to an EC2 instance, validating all infrastructure using **Terratest**.
+
+---
+
+## 📌 Task Objectives
+
+✅ Use Terraform to provision:
+
+- AWS **CodePipeline** with:
+  - **Source** stage (GitHub or CodeCommit)
+  - **Build** stage (AWS CodeBuild)
+  - **Deploy** stage (AWS CodeDeploy to EC2)
+
+✅ Define infrastructure as code:
+
+- CodePipeline, CodeBuild, CodeDeploy
+- IAM roles and policies
+- S3 bucket for storing artifacts
+
+✅ Write **infrastructure tests** using [Terratest](https://terratest.gruntwork.io/)
+
+✅ Apply Terraform and verify a successful deployment
+
+---
 ## 📦 Prerequisites
 
 - AWS CLI configured (`aws configure`)
