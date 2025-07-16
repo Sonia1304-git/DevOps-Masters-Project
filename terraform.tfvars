@@ -1,0 +1,12 @@
+project_name       = "DevOps-Masters-Project"
+bucket_name        = "devops-masters-project-ayush-artifacts-2025"
+aws_region         = "ap-south-1"
+ami_id             = "ami-08abeca95324c9c91"   
+instance_type      = "t3.micro"
+key_name           = "Devops_Proj_key"           # Must exist in your AWS account
+github_owner       = "Ayush-silicon"
+github_repo        = "https://github.com/Ayush-silicon/DevOps-Masters-Project.git"   
+github_branch      = "main"
+github_token       = "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"      # Create a GitHub Personal Access Token with repo access
+instance_tag_key   = "Name"
+instance_tag_value = "MyAppServer"
