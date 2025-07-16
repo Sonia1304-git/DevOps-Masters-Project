@@ -19,3 +19,6 @@ project-folder/
 Thumbs.db
 .vscode/
 .idea/
+
+# Terraform variable files
+*.tfvars
