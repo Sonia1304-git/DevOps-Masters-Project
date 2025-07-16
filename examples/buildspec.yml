@@ -2,18 +2,43 @@ version: 0.2
 
 phases:
   install:
-    runtime-versions:
-      nodejs: 20
     commands:
-      - npm install
+      # We are explicitly navigating into the 'examples' directory
+      # where your buildspec.yml, appspec.yml, and scripts are located.
+      # All subsequent commands will run from within this directory.
+      - echo "Changing directory to the 'examples' folder."
+      - cd examples/ # This is CRUCIAL if your app files are in 'examples/'
+
+      - echo "Skipping Node.js specific commands as no package.json is present."
+      # If you have any other language-specific installations (e.g., Python 'pip install -r requirements.txt'),
+      # you would put them here.
+      - echo "Install phase complete. No specific application dependencies to install."
+
   build:
     commands:
-      - npm run build
+      - echo "Build phase: preparing artifacts for CodeDeploy."
+      # Create the 'dist' directory in the current working directory (which is 'examples/')
+      - mkdir -p dist/
+      - echo "Copying appspec.yml to dist/."
+      # Now appspec.yml is found relative to 'examples/'
       - cp appspec.yml dist/
+      - echo "Creating dist/scripts directory."
+      # Ensure scripts directory exists within 'dist'
       - mkdir -p dist/scripts
+      - echo "Copying install.sh to dist/scripts/."
+      # Now scripts/install.sh is found relative to 'examples/'
       - cp scripts/install.sh dist/scripts/
+      # If you have other application files (e.g., index.html, JS, CSS)
+      # in the 'examples/' directory that need to be part of the deployable artifact,
+      # you would copy them to 'dist/' here as well.
+      # Example: cp *.html dist/
+      # Example: cp -r your-web-app-folder/* dist/
 
 artifacts:
   files:
-    - '**/*'
-  base-directory: dist
+    - '**/*' # This means all files and directories within the 'dist' folder will be included in the artifact.
+  discard-paths: no
+  # This tells CodeBuild that the actual deployable content for CodeDeploy
+  # should come from the 'dist' directory *inside* the 'examples' directory.
+  # So the artifact will contain whatever you copied into 'examples/dist/'.
+  base-directory: examples/dist # <--- This is where your deployable files will be packaged from
