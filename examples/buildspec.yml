@@ -3,17 +3,18 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 14
     commands:
+      - echo Installing dependencies...
       - npm install
+
   build:
     commands:
-      - npm run build
-      - cp appspec.yml dist/
-      - mkdir -p dist/scripts
-      - cp scripts/install.sh dist/scripts/
+      - echo Build step (optional, skipping)
 
 artifacts:
   files:
-    - '**/*'
-  base-directory: dist
+    - appspec.yml
+    - scripts/**
+    - '**/*.js'
+    - package.json
