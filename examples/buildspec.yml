@@ -3,8 +3,6 @@ version: 0.2
 phases:
   install:
     commands:
-      # CRUCIAL: This command changes the working directory to 'examples/'
-      # All subsequent commands will run from within this directory.
       - cd examples/
       - echo "Skipping Node.js specific commands as no package.json is present."
       - echo "Install phase complete. No specific application dependencies to install."
@@ -19,15 +17,9 @@ phases:
       - mkdir -p dist/scripts
       - echo "Copying install.sh to dist/scripts/."
       - cp scripts/install.sh dist/scripts/
-      # If you have other application files (e.g., index.html, JS, CSS)
-      # in the 'examples/' directory that need to be part of the deployable artifact,
-      # you would copy them to 'dist/' here as well.
-      # Example: - cp *.html dist/
-      # Example: - cp -r your-web-app-folder/* dist/
 
 artifacts:
   files:
-    - '**/*' # All files and directories within 'examples/dist/' will be included.
+    - '**/*'
   discard-paths: no
-  # This makes the 'dist' folder (inside 'examples/') the root of the artifact bundle.
   base-directory: examples/dist
