@@ -220,8 +220,11 @@ To validate the Terraform modules using Terratest:
 ## 📸 Screenshots
 <img width="1445" height="668" alt="image" src="https://github.com/user-attachments/assets/b856832b-07f9-49de-94bd-732a15aeb94f" />
 <img width="1826" height="254" alt="image" src="https://github.com/user-attachments/assets/81fe1e99-62b0-4da1-89c2-14ab7733882e" />
-
+<img width="1450" height="612" alt="image" src="https://github.com/user-attachments/assets/55e426f4-3793-42a5-be7e-f2e6d7d56693" />
+<img width="1455" height="540" alt="image" src="https://github.com/user-attachments/assets/47ee740f-fe8b-44f6-af5f-880f0e031717" />
+<img width="1490" height="720" alt="image" src="https://github.com/user-attachments/assets/6eb0f673-2287-4fac-84a6-faa22197418f" />
 <img width="1719" height="656" alt="Screenshot 2025-07-17 014517" src="https://github.com/user-attachments/assets/3ce666c6-7ff6-4fc4-8dbc-79f3ae70c13c" />
+
 ## 🧠 Common Problems & Fixes
 
 | Problem                                    | Fix                                                                            |
@@ -230,3 +233,246 @@ To validate the Terraform modules using Terratest:
 | ❌ EC2 agent not running                    | Check if `codedeploy-agent` is running (see `user_data` script in `main.tf`)   |
 | ❌ Pipeline fails at source                 | Verify GitHub repo, branch name, and token permissions                         |
 | ❌ Build fails                              | Check `buildspec.yml` and make sure it's valid and points to correct scripts   |
+
+### Task 2: DevSecOps Integration using GitHub Actions and Sealed Secrets
+
+This task integrates advanced DevSecOps practices into the CI/CD pipeline using GitHub Actions for automated security scanning and Kubernetes Sealed Secrets for secure secret management.
+
+1.  **Setup GitHub Actions Workflow**
+
+    Create the GitHub Actions workflow file: `.github/workflows/devsecops-pipeline.yml`
+
+    ```yaml
+    name: DevSecOps CI/CD
+
+    on:
+      push:
+        branches:
+          - main
+
+    jobs:
+      validate-terraform:
+        name: Terraform Validation & tfsec
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v3
+
+          - name: Setup Terraform
+            uses: hashicorp/setup-terraform@v2
+            with:
+              terraform_version: 1.5.5
+
+          - name: Terraform Init
+            run: terraform init
+
+          - name: Terraform Format
+            run: terraform fmt -check
+
+          - name: Terraform Validate
+            run: terraform validate
+
+          - name: Run tfsec (Terraform security scan)
+            uses: aquasecurity/tfsec-action@v1.0.0
+    ```
+
+2.  **Add Docker Image Build + Trivy Scan**
+
+    Extend the same workflow (`.github/workflows/devsecops-pipeline.yml`) with a job for Docker build and Trivy scanning:
+
+    ```yaml
+      docker-security:
+        name: Docker Build & Trivy Scan
+        runs-on: ubuntu-latest
+        needs: validate-terraform
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v3
+
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v2
+
+          - name: Build Docker image
+            run: docker build -t myapp:latest .
+
+          - name: Install Trivy
+            run: |
+              sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+              echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+              sudo apt-get update
+              sudo apt-get install trivy -y
+
+          - name: Scan image with Trivy
+            run: trivy image --exit-code 1 --severity CRITICAL,HIGH myapp:latest
+    ```
+
+3.  **Encrypt Kubernetes Secrets using Sealed Secrets**
+
+    a.  **Install `kubeseal` CLI**:
+        ```bash
+        choco install kubeseal  # Windows
+        brew install kubeseal   # macOS
+        ```
+    b.  **Generate a Kubernetes Secret**:
+        ```bash
+        kubectl create secret generic db-creds --from-literal=username=admin --from-literal=password=pass123 --dry-run=client -o yaml > secret.yaml
+        ```
+    c.  **Encrypt using `kubeseal`**: You need the Sealed Secrets controller certificate from your Kubernetes cluster (e.g., `my-sealed-secrets-cert.pem`).
+        ```bash
+        kubeseal --cert my-sealed-secrets-cert.pem -o yaml < secret.yaml > sealed-secret.yaml
+        ```
+    d.  **Store `sealed-secret.yaml`**: Place this file in a folder like `k8s/secrets/` in your GitHub repository.
+
+    **Sample `sealed-secret.yaml` (for Kubernetes)**
+    ```yaml
+    apiVersion: bitnami.com/v1alpha1
+    kind: SealedSecret
+    metadata:
+      name: db-creds
+      namespace: default
+    spec:
+      encryptedData:
+        password: AgB0c34xX2... # Your encrypted password
+        username: AgD1Ukw... # Your encrypted username
+      template:
+        metadata:
+          name: db-creds
+          namespace: default
+    ```
+    📌 Save this in your repo at: `k8s/secrets/sealed-secret.yaml`
+
+    **Sample `deployment.yaml` for Kubernetes**
+    This demonstrates how your application deployment can consume the secrets.
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: myapp
+      labels:
+        app: myapp
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: myapp
+      template:
+        metadata:
+          labels:
+            app: myapp
+        spec:
+          containers:
+            - name: myapp
+              image: myapp:latest # Replace with your actual image
+              ports:
+                - containerPort: 3000
+              env:
+                - name: DB_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-creds
+                      key: username
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-creds
+                      key: password
+    ```
+    📌 Save this as: `k8s/manifests/deployment.yaml`
+
+4.  **Deploy to Kubernetes in Workflow**
+
+    Add the final deployment job to your GitHub Actions workflow:
+
+    ```yaml
+      deploy-kubernetes:
+        name: Deploy to Kubernetes
+        runs-on: ubuntu-latest
+        needs: docker-security
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v3
+
+          - name: Setup kubectl
+            uses: azure/setup-kubectl@v3
+            with:
+              version: v1.29.0
+
+          - name: Configure Kubeconfig
+            run: |
+              mkdir -p ~/.kube
+              echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
+
+          - name: Apply Sealed Secret
+            run: kubectl apply -f k8s/secrets/sealed-secret.yaml
+
+          - name: Deploy app manifests
+            run: kubectl apply -f k8s/manifests/
+    ```
+
+    **NOTE:** Store your `kubeconfig` securely as a GitHub secret (e.g., `KUBECONFIG_BASE64`), base64 encoded.
+
+#### 🧪 Final Test Flow (When You Push Code)
+
+Upon a code push to the `main` branch, the GitHub Actions workflow will execute:
+
+1.  Terraform configuration is validated and scanned with `tfsec`.
+2.  A Docker image is built and scanned for vulnerabilities with `Trivy`.
+3.  Sealed secrets are applied to the Kubernetes cluster, securely provisioning sensitive data.
+4.  The application is deployed to Kubernetes, utilizing those decrypted secrets.
+
+## 📁 Folder Structure
+
+```
+DevOps-Masters-Project/
+├── .github/workflows/
+│   └── devsecops-pipeline.yml
+├── terraform/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── outputs.tf
+├── docker/
+│   └── Dockerfile
+├── k8s/
+│   ├── manifests/
+│   │   └── deployment.yaml
+│   └── secrets/
+│       └── sealed-secret.yaml
+├── examples/ # Contains buildspec.yml, appspec.yml, scripts for application
+├── test/     # Terratest files
+│   └── terraform_pipeline_test.go
+├── .gitignore
+├── README.md
+├── main.tf   # Or other Terraform config files
+└── terraform.tfvars.example # Template for tfvars
+```
+
+## 👋 Contributions
+
+We welcome contributions! Please follow these steps to contribute:
+
+1.  Fork the repository
+2.  Clone your fork: `git clone https://github.com/your-username/DevOps-Masters-Project.git`
+3.  Create a new branch: `git checkout -b feature/your-feature-name`
+4.  Make your changes and commit them: `git commit -m "feat: Add your feature"`
+5.  Push to your branch: `git push origin feature/your-feature-name`
+6.  Submit a pull request explaining your changes.
+
+## 💡 Upcoming Features
+
+-   🎯 Integration with advanced monitoring tools (e.g., Prometheus, Grafana).
+-   🛡️ Enhanced security scanning with DAST/SAST tools.
+-   🔄 Automated rollback strategies for failed deployments.
+-   📊 Dashboard for CI/CD pipeline health and metrics.
+-   ☁️ Multi-cloud deployment options.
+
+## 📜 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 📧 Contact
+
+**Author Name:** Ayush Singh
+
+**Email:**  singh.ayush.kv@gmail.com
+
