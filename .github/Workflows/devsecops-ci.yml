@@ -1,4 +1,4 @@
-name: DevSecOps CI/CD Pipeline
+name: DevSecOps CI/CD
 
 on:
   push:
@@ -6,60 +6,72 @@ on:
       - main
 
 jobs:
-  tfsec-scan:
+  validate-terraform:
+    name: Terraform Validation & tfsec
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install tfsec
-        run: |
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-      - name: Run tfsec
-        run: tfsec ./terraform
 
-  docker-trivy-scan:
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.5
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Run tfsec (Terraform security scan)
+        uses: aquasecurity/tfsec-action@v1.0.0
+
+  docker-security:
+    name: Docker Build & Trivy Scan
     runs-on: ubuntu-latest
-    needs: tfsec-scan
+    needs: validate-terraform
     steps:
       - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: docker build -t myapp:latest ./build
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: myapp:latest
-          format: 'table'
-          exit-code: '0'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        run: docker build -t myapp:latest .
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+
+      - name: Scan Docker image with Trivy
+        run: trivy image --exit-code 1 --severity CRITICAL,HIGH myapp:latest
 
   deploy-kubernetes:
+    name: Apply Sealed Secrets & Deploy
     runs-on: ubuntu-latest
-    needs: docker-trivy-scan
+    needs: docker-security
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up kubectl
+      - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: '1.27.0'
+          version: v1.29.0
 
-      - name: Install kubeseal CLI
+      - name: Configure Kubeconfig
         run: |
-          wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.26.1/kubeseal-linux-amd64 -O kubeseal
-          chmod +x kubeseal && sudo mv kubeseal /usr/local/bin/
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
 
-      - name: Apply sealed secrets
-        run: kubectl apply -f k8s/secrets/db-secret-sealed.yaml
+      - name: Apply Sealed Secrets
+        run: kubectl apply -f k8s/secrets/sealed-secret.yaml
 
-      - name: Deploy application
-        run: kubectl apply -f k8s/deployment.yaml
-
-  terraform-apply:
-    runs-on: ubuntu-latest
-    needs: deploy-kubernetes
-    steps:
-      - uses: actions/checkout@v3
-      - name: Terraform Init & Apply
-        uses: hashicorp/terraform-github-actions@v2.0.2
-        with:
-          tf_actions_working_dir: ./terraform
-          tf_actions_subcommand: 'apply'
-          tf_actions_auto_approve: true
+      - name: Deploy App to Kubernetes
+        run: kubectl apply -f k8s/manifests/deployment.yaml
