@@ -2,6 +2,60 @@
 
 This project establishes a robust CI/CD pipeline on AWS using Terraform, enhanced with cutting-edge DevSecOps practices via GitHub Actions. It provisions an end-to-end AWS CodePipeline (Source, Build, Deploy to EC2) and validates infrastructure with Terratest. Further, it integrates GitHub Actions for automated DevSecOps, incorporating security scanning (tfsec for Terraform, Trivy for Docker images) and secure secret management with Kubernetes Sealed Secrets. This ensures a secure, automated, and efficient application delivery workflow, triggered on every code push.
 
+# 🏛️ Project Archtecture
+
+```mermaid
+flowchart TD
+  %% Direction top to bottom
+  direction TB
+
+  %% Developer
+  subgraph DEV["👨‍💻 Developer"]
+    A1["💻 Push Code to GitHub"]
+  end
+
+  %% GitHub Actions CI/CD Flow
+  subgraph CICD["🔁 CI/CD with GitHub Actions"]
+    B1["⚙️ GitHub Actions Workflow"]
+    B2["🔍 tfsec - Terraform Security Scan"]
+    B3["🔐 Trivy - Docker Image Scan"]
+    B4["🔑 Sealed Secrets CLI"]
+  end
+
+  %% AWS Infra
+  subgraph AWS["☁️ AWS Infrastructure via Terraform"]
+    C1["📦 S3 Bucket\n(Artifact Storage)"]
+    C2["🏗️ CodeBuild\n(Build & Test)"]
+    C3["🚀 CodeDeploy\n(EC2 Deployment)"]
+    C4["🔁 CodePipeline\n(CI/CD Orchestrator)"]
+    C5["🔐 IAM Roles & Policies"]
+  end
+
+  %% Kubernetes Cluster
+  subgraph K8S["📦 Kubernetes Cluster"]
+    D1["🧩 SealedSecrets Controller"]
+    D2["🛠️ Workload using Secrets"]
+    D3["☸️ Kubernetes Workloads"]
+  end
+
+  %% Flow connections
+  A1 --> B1
+  B1 --> B2
+  B1 --> B3
+  B1 --> B4
+  B1 --> C4
+
+  C4 --> C1
+  C4 --> C2
+  C4 --> C3
+  C4 --> C5
+
+  B4 --> D1
+  D1 --> D2
+  C3 --> D3
+```
+
+
 ## 🌐 Live Demo
 
 [https://github.com/Ayush-silicon/DevOps-Masters-Project](https://github.com/Ayush-silicon/DevOps-Masters-Project)
@@ -83,10 +137,6 @@ To set up and run this project, follow these steps:
 
 _Ensure all necessary environment variables (e.g., AWS credentials, GitHub tokens) are securely configured in your CI/CD environment or local setup._
 
-## 📸 Screenshots
-
-_Add screenshots here_
-
 ## 🚀 Usage / How it Works
 
 This project is divided into two main tasks: provisioning an AWS CodePipeline with Terraform and enhancing it with DevSecOps practices using GitHub Actions and Kubernetes Sealed Secrets.
@@ -166,8 +216,12 @@ To validate the Terraform modules using Terratest:
     go test ./test
     ```
     This will initialize and apply your Terraform, capture and assert outputs, and automatically destroy resources.
+    
+## 📸 Screenshots
+<img width="1445" height="668" alt="image" src="https://github.com/user-attachments/assets/b856832b-07f9-49de-94bd-732a15aeb94f" />
+<img width="1826" height="254" alt="image" src="https://github.com/user-attachments/assets/81fe1e99-62b0-4da1-89c2-14ab7733882e" />
 
-
+<img width="1719" height="656" alt="Screenshot 2025-07-17 014517" src="https://github.com/user-attachments/assets/3ce666c6-7ff6-4fc4-8dbc-79f3ae70c13c" />
 ## 🧠 Common Problems & Fixes
 
 | Problem                                    | Fix                                                                            |
