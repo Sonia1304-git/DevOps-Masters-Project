@@ -2,18 +2,12 @@ version: 0.2
 
 phases:
   install:
-    runtime-versions:
-      nodejs: 20
     commands:
-      - npm install
+      - echo "Install phase started"
   build:
     commands:
-      - npm run build
-      - cp appspec.yml dist/
-      - mkdir -p dist/scripts
-      - cp scripts/install.sh dist/scripts/
-
+      - echo "Build phase started"
+      - echo "No application build required, just provisioning"
 artifacts:
   files:
     - '**/*'
-  base-directory: dist
