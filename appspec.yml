@@ -6,6 +6,6 @@ files:
 
 hooks:
   AfterInstall:
-    - location: terraform-project-task-1-main/terraform-project-task-1-main/scripts/install.sh
+    - location: scripts/install.sh
       timeout: 300
       runas: root
